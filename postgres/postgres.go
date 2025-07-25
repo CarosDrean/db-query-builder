@@ -379,6 +379,16 @@ func BuildIN(field models.Field) string {
 		}
 
 		return fmt.Sprintf("%s IN (%s)", nameField, strings.TrimSuffix(args.String(), ","))
+	case []int64:
+		if len(items) == 0 {
+			return mistakeIN
+		}
+
+		for _, item := range items {
+			args.WriteString(fmt.Sprintf("%d,", item))
+		}
+
+		return fmt.Sprintf("%s IN (%s)", nameField, strings.TrimSuffix(args.String(), ","))
 	case []string:
 		if len(items) == 0 {
 			return mistakeIN
