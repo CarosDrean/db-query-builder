@@ -9,7 +9,7 @@ import (
 
 	"github.com/lib/pq"
 
-	"github.com/AJRDRGZ/db-query-builder/models"
+	"github.com/CarosDrean/db-query-builder/models"
 )
 
 const ErrFieldsAreEmpty = "FAILED! YOU NEED TO SEND FIELDS"

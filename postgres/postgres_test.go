@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AJRDRGZ/db-query-builder/models"
+	"github.com/CarosDrean/db-query-builder/models"
 
 	"github.com/stretchr/testify/assert"
 )
