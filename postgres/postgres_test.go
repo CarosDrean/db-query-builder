@@ -18,12 +18,12 @@ func TestBuildSQLInsert(t *testing.T) {
 		{
 			table:  "cashboxes",
 			fields: []string{"responsable", "country", "user_id", "account"},
-			want:   "INSERT INTO cashboxes (responsable, country, user_id, account) VALUES ($1, $2, $3, $4) RETURNING id, created_at",
+			want:   "INSERT INTO cashboxes (responsable, country, user_id, account) VALUES ($1, $2, $3, $4) RETURNING id",
 		},
 		{
 			table:  "one",
 			fields: []string{"one_field"},
-			want:   "INSERT INTO one (one_field) VALUES ($1) RETURNING id, created_at",
+			want:   "INSERT INTO one (one_field) VALUES ($1) RETURNING id",
 		},
 		{
 			table:  "empty",

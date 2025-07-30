@@ -74,7 +74,7 @@ func BuildSQLInsert(table string, fields []string) string {
 	args.Truncate(args.Len() - 2)
 	values.Truncate(values.Len() - 2)
 
-	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id, created_at", table, args.String(), values.String())
+	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", table, args.String(), values.String())
 }
 
 // BuildSQLInsertWithID builds a query INSERT of postgres allowing to send the ID
