@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/lib/pq"
@@ -168,8 +169,26 @@ func BuildSQLWhere(fields models.Fields) (string, []interface{}) {
 		}
 
 		switch field.Operator {
+		case models.Empty:
+			if field.GroupOpen {
+				query.WriteString("(")
+			}
+			if field.GroupClose {
+				s := query.String()
+				s = strings.TrimSpace(s)
+
+				re := regexp.MustCompile(`(?i)\s*(AND|OR)\s*$`) // last chaining key
+				cleaned := re.ReplaceAllString(s, "")
+
+				query.Reset()
+				query.WriteString(cleaned)
+			}
 		case models.In:
-			query.WriteString(BuildIN(field))
+			query.WriteString(fmt.Sprintf("%s %s ANY($%d)",
+				strings.ToLower(field.Name),
+				models.Equals,
+				paramSequence,
+			))
 		case models.IsNull, models.IsNotNull:
 			query.WriteString(fmt.Sprintf("%s %s", strings.ToLower(field.Name), field.Operator))
 		case models.Between:
@@ -219,11 +238,11 @@ func BuildSQLWhere(fields models.Fields) (string, []interface{}) {
 		}
 
 		// Add chainingKey (OR, AND) except in the last field
-		if key != lastFieldIndex {
+		if key != lastFieldIndex && !(field.Operator == models.Empty && field.GroupOpen) {
 			query.WriteString(fmt.Sprintf(" %s ", field.ChainingKey))
 		}
 
-		if field.Operator == models.In ||
+		if field.Operator == models.Empty ||
 			field.Operator == models.IsNull ||
 			field.Operator == models.IsNotNull ||
 			field.IsValueFromTable {
@@ -231,7 +250,7 @@ func BuildSQLWhere(fields models.Fields) (string, []interface{}) {
 			continue
 		}
 
-		// Add arguments of the parameters when operator is different to "IN, IsNull, IsNotNull" or when IsValueFromTable is true
+		// Add arguments of the parameters when operator is different to "EMPTY, IsNull, IsNotNull" or when IsValueFromTable is true
 		if field.Value != nil {
 			args = append(args, field.Value)
 		}
@@ -352,66 +371,19 @@ func CheckError(err error) error {
 	return nil
 }
 
-func BuildIN(field models.Field) string {
-	nameField := strings.ToLower(field.Name)
-	// if the IN failed, return mistakeIN for not select nothing in the field
-	mistakeIN := fmt.Sprintf("%s = 0", nameField)
-
-	args := bytes.Buffer{}
-	switch items := field.Value.(type) {
-	case []uint:
-		if len(items) == 0 {
-			return mistakeIN
-		}
-
-		for _, item := range items {
-			args.WriteString(fmt.Sprintf("%d,", item))
-		}
-
-		return fmt.Sprintf("%s IN (%s)", nameField, strings.TrimSuffix(args.String(), ","))
-	case []int:
-		if len(items) == 0 {
-			return mistakeIN
-		}
-
-		for _, item := range items {
-			args.WriteString(fmt.Sprintf("%d,", item))
-		}
-
-		return fmt.Sprintf("%s IN (%s)", nameField, strings.TrimSuffix(args.String(), ","))
-	case []int64:
-		if len(items) == 0 {
-			return mistakeIN
-		}
-
-		for _, item := range items {
-			args.WriteString(fmt.Sprintf("%d,", item))
-		}
-
-		return fmt.Sprintf("%s IN (%s)", nameField, strings.TrimSuffix(args.String(), ","))
-	case []string:
-		if len(items) == 0 {
-			return mistakeIN
-		}
-
-		for _, item := range items {
-			args.WriteString(fmt.Sprintf("'%s',", item))
-		}
-
-		return fmt.Sprintf("%s IN (%s)", nameField, strings.TrimSuffix(args.String(), ","))
-	default:
-		return mistakeIN
-	}
-}
-
 func setDefaultValuesField(field *models.Field) {
 	setChainingField(field)
 	setOperatorField(field)
 	setAliases(field)
 	setGroupOpen(field)
+	setGroupClose(field)
 }
 
 func setChainingField(field *models.Field) {
+	if field.Operator == models.Empty {
+		return
+	}
+
 	if field.ChainingKey == "" {
 		field.ChainingKey = models.And
 	}
@@ -436,6 +408,12 @@ func setAliases(field *models.Field) {
 func setGroupOpen(field *models.Field) {
 	if field.GroupOpen {
 		field.Name = fmt.Sprintf("(%s", field.Name)
+	}
+}
+
+func setGroupClose(field *models.Field) {
+	if field.GroupClose && field.Operator == models.Empty {
+		field.Name = ")"
 	}
 }
 

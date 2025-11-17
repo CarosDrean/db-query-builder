@@ -33,6 +33,7 @@ const (
 	IsNull               operatorField = "IS NULL"
 	IsNotNull            operatorField = "IS NOT NULL"
 	Between              operatorField = "BETWEEN"
+	Empty                operatorField = "EMPTY"
 )
 
 // ChainingField is the keyword for chaining the next field

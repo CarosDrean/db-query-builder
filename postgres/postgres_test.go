@@ -165,12 +165,22 @@ func TestBuildSQLWhere(t *testing.T) {
 			wantArgs:  nil,
 		},
 		{
-			name: "where with ILIKE",
+			name: "where with IN",
 			fields: models.Fields{
 				{Name: "id", Value: []uint{1, 2, 3}, Operator: models.In},
 			},
-			wantQuery: "WHERE id IN (1,2,3)",
-			wantArgs:  nil,
+			wantQuery: "WHERE id = ANY($1)",
+			wantArgs:  []interface{}{[]uint{1, 2, 3}},
+		},
+		{
+			name: "where with operator empty",
+			fields: models.Fields{
+				{GroupOpen: true, Operator: models.Empty},
+				{Name: "id", Value: []uint{1, 2, 3}, Operator: models.In},
+				{GroupClose: true, Operator: models.Empty},
+			},
+			wantQuery: "WHERE (id = ANY($1))",
+			wantArgs:  []interface{}{[]uint{1, 2, 3}},
 		},
 		{
 			name: "where with all operators",
@@ -183,8 +193,8 @@ func TestBuildSQLWhere(t *testing.T) {
 				{Name: "certificates", Value: 3, Operator: models.GreaterThan},
 				{Name: "is_active", Value: true},
 			},
-			wantQuery: "WHERE name = $1 AND age = $2 OR course = $3 AND id IN (1,4,9) AND description ILIKE $4 AND certificates > $5 AND is_active = $6",
-			wantArgs:  []interface{}{"Alejandro", 30, "Go", "%golang%", 3, true},
+			wantQuery: "WHERE name = $1 AND age = $2 OR course = $3 AND id = ANY($4) AND description ILIKE $5 AND certificates > $6 AND is_active = $7",
+			wantArgs:  []interface{}{"Alejandro", 30, "Go", []uint{1, 4, 9}, "%golang%", 3, true},
 		},
 		{
 			name: "where with operators and string ILIKE",
@@ -194,8 +204,8 @@ func TestBuildSQLWhere(t *testing.T) {
 				{Name: "enable", Value: true},
 				{Name: "code", Value: []string{"COL", "COP"}, Operator: models.In},
 			},
-			wantQuery: "WHERE country = $1 AND currency_id = $2 OR enable = $3 AND code IN ('COL','COP')",
-			wantArgs:  []interface{}{"COLOMBIA", 3, true},
+			wantQuery: "WHERE country = $1 AND currency_id = $2 OR enable = $3 AND code = ANY($4)",
+			wantArgs:  []interface{}{"COLOMBIA", 3, true, []string{"COL", "COP"}},
 		},
 		{
 			name: "where with operators and NOT NULL",
@@ -206,8 +216,8 @@ func TestBuildSQLWhere(t *testing.T) {
 				{Name: "enable", Value: true},
 				{Name: "code", Value: []string{"COL", "COP"}, Operator: models.In},
 			},
-			wantQuery: "WHERE country = $1 AND currency_id = $2 OR begins_at IS NULL AND enable = $3 AND code IN ('COL','COP')",
-			wantArgs:  []interface{}{"COLOMBIA", 3, true},
+			wantQuery: "WHERE country = $1 AND currency_id = $2 OR begins_at IS NULL AND enable = $3 AND code = ANY($4)",
+			wantArgs:  []interface{}{"COLOMBIA", 3, true, []string{"COL", "COP"}},
 		},
 		{
 			name: "where with aliased",
@@ -328,9 +338,11 @@ func TestBuildSQLWhere(t *testing.T) {
 	}
 
 	for _, tt := range tableTest {
-		gotQuery, gotArgs := BuildSQLWhere(tt.fields)
-		assert.Equal(t, tt.wantQuery, gotQuery, tt.name)
-		assert.Equal(t, tt.wantArgs, gotArgs, tt.name)
+		t.Run(tt.name, func(t *testing.T) {
+			gotQuery, gotArgs := BuildSQLWhere(tt.fields)
+			assert.Equal(t, tt.wantQuery, gotQuery, tt.name)
+			assert.Equal(t, tt.wantArgs, gotArgs, tt.name)
+		})
 	}
 }
 
@@ -399,49 +411,6 @@ func TestBuildSQLOrderBy(t *testing.T) {
 			got := BuildSQLOrderBy(tt.sorts)
 			assert.Equal(t, tt.want, got)
 		})
-	}
-}
-
-func TestBuildIN(t *testing.T) {
-	tableTest := []struct {
-		field     models.Field
-		wantQuery string
-	}{
-		{
-			field: models.Field{
-				Name: "id", Value: []uint{1, 2, 3}, Operator: models.In,
-			},
-			wantQuery: "id IN (1,2,3)",
-		},
-		{
-			field: models.Field{
-				Name: "employee_id", Value: []int{5, 6, 7}, Operator: models.In,
-			},
-			wantQuery: "employee_id IN (5,6,7)",
-		},
-		{
-			field: models.Field{
-				Name: "marital_status", Value: []string{"SINGLE"}, Operator: models.In,
-			},
-			wantQuery: "marital_status IN ('SINGLE')",
-		},
-		{
-			field: models.Field{
-				Name: "employee_id", Value: "fake", Operator: models.In,
-			},
-			wantQuery: "employee_id = 0",
-		},
-		{
-			field: models.Field{
-				Name: "contract_id", Value: []uint{}, Operator: models.In,
-			},
-			wantQuery: "contract_id = 0",
-		},
-	}
-
-	for _, tt := range tableTest {
-		gotQuery := BuildIN(tt.field)
-		assert.Equal(t, tt.wantQuery, gotQuery)
 	}
 }
 
